@@ -7,7 +7,7 @@ from .analyzer import analyze_file
 @click.argument("path", type=click.Path(exists=True))
 @click.option("--check", is_flag=True, help="Check only, no modifications")
 def main(path: str, check: bool):
-    """Optimize Python imports."""
+    """Optimize Python imports"""
     path = Path(path)
 
     if path.is_file():

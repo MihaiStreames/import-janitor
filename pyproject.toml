@@ -14,6 +14,7 @@ requires-python = ">=3.9"
 dependencies = [
     "click>=8.1.8",
     "libcst>=1.8.6",
+    "msgspec>=0.20.0",
     "pyyaml>=6.0.3",
     "toml>=0.10.2",
 ]

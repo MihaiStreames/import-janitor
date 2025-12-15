@@ -1,19 +1,19 @@
 import libcst as cst
+import libcst.metadata as metadata
 from typing import Set, Dict
-from dataclasses import dataclass
+import msgspec
 
 
-@dataclass
-class Usage:
+class Usage(msgspec.Struct):
     name: str
     in_type_annotation: bool
     lineno: int
 
 
 class UsageTracker(cst.CSTVisitor):
-    """Tracks where imported names are used."""
+    """Tracks where imported names are used"""
 
-    METADATA_DEPENDENCIES = (cst.metadata.PositionProvider,)
+    METADATA_DEPENDENCIES = (metadata.PositionProvider,)
 
     def __init__(self, imported_names: Set[str]):
         self.imported_names = imported_names
@@ -28,7 +28,7 @@ class UsageTracker(cst.CSTVisitor):
 
     def visit_Name(self, node: cst.Name) -> None:
         if node.value in self.imported_names:
-            pos = self.get_metadata(cst.metadata.PositionProvider, node)
+            pos = self.get_metadata(metadata.PositionProvider, node)
             self.usages[node.value].append(
                 Usage(
                     name=node.value,
@@ -39,7 +39,7 @@ class UsageTracker(cst.CSTVisitor):
 
 
 def is_type_only_import(filepath, import_name: str, imported_names: Set[str]) -> bool:
-    """Check if an import is only used in type annotations."""
+    """Check if an import is only used in type annotations"""
     with open(filepath, "r") as f:
         source = f.read()
 

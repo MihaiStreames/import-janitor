@@ -12,7 +12,7 @@ description = "An opinionated tool to clean up and optimize Python imports"
 readme = "README.md"
 requires-python = ">=3.9"
 dependencies = [
-    "click>=8.1.8",
+    "click>=8.3.1",
     "libcst>=1.8.6",
     "msgspec>=0.20.0",
     "pyyaml>=6.0.3",
@@ -21,9 +21,11 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
-    "black>=25.11.0",
-    "pytest>=8.4.2",
-    "ruff>=0.14.9",
+    "pytest>=9.0.2",
+    "ruff>=0.14.13",
+    "mypy>=1.19.1",
+    "isort>=7.0.0",
+    "black>=26.1.0",
 ]
 
 [project.scripts]

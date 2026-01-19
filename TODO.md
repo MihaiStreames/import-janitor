@@ -12,8 +12,8 @@ Build an opinionated tool that analyzes and optimizes Python imports following r
 
 **Status:** Foundation laid with `analyzer.py`
 
-- [x] Parse imports from files
-- [x] Track import metadata (module, names, line numbers)
+- [ ] Parse imports from files
+- [ ] Track import metadata (module, names, line numbers)
 - [ ] Complete usage tracker to find where imports are used
 - [ ] Detect type-only usage contexts:
   - [ ] Function annotations (args, return types)
@@ -137,7 +137,7 @@ Build an opinionated tool that analyzes and optimizes Python imports following r
 
 ### Code Organization
 
-- [x] `analyzer.py` - Import detection and parsing
+- [ ] `analyzer.py` - Import detection and parsing
 - [ ] `usage_tracker.py` - Find where imports are used (partially done)
 - [ ] `classifier.py` - Classify imports (type-only, internal/external)
 - [ ] `graph.py` - Build and analyze import dependency graph
@@ -149,8 +149,8 @@ Build an opinionated tool that analyzes and optimizes Python imports following r
 
 ### Testing
 
-- [x] Basic test structure
-- [x] Tests for import analysis
+- [ ] Basic test structure
+- [ ] Tests for import analysis
 - [ ] Tests for usage tracking
 - [ ] Tests for TYPE_CHECKING migration
 - [ ] Tests for relative/absolute conversion
@@ -274,3 +274,236 @@ Build an opinionated tool that analyzes and optimizes Python imports following r
 5. Manual testing on real code
 
 Once Phase 1 is solid, move to Phase 2 (Relative/Absolute normalization) or Phase 3 (Circular dependency detection) based on what's most valuable.
+
+---
+
+## 1. Purpose
+
+This tool statically analyzes Python source code to **lint, normalize, and refactor imports** according to a strict, opinionated policy. Its goal is to eliminate the *common* causes of import-related bugs (ordering, cycles, ambiguity, star imports, path hacks) while **never silently changing runtime behavior**.
+
+The tool is explicitly **best‑effort**: when correctness cannot be proven statically, it reports diagnostics and refuses to autofix.
+
+---
+
+## 2. Non‑Goals (Hard Boundaries)
+
+The tool does **not**:
+
+- Execute Python code
+- Emulate import hooks or dynamic loaders
+- Rewrite `sys.path` mutations
+- Resolve imports that depend on runtime state
+- Guarantee elimination of all circular dependencies
+- Rewrite code that cannot be proven safe
+
+Failure to autofix is a **designed outcome**, not an error.
+
+---
+
+## 3. Operating Assumptions
+
+All analysis and rewrites assume:
+
+- No runtime import hooks (`sys.meta_path` untouched)
+- Deterministic filesystem layout
+- Imports resolvable under standard PEP 328 / 420 rules
+- Python version known (from config)
+
+If these assumptions are violated, affected imports are marked **tainted**.
+
+---
+
+## 4. Import Policy (Enforced Rules)
+
+### 4.1 Absolute vs Relative Imports
+
+- **Within the same package** → relative imports
+- **Outside the package** → absolute imports
+
+Enforcement:
+
+- Lint if rule violated
+- Autofix only if target resolves unambiguously
+
+---
+
+### 4.2 Star Imports (`from x import *`)
+
+Policy:
+
+- Star imports are forbidden
+
+Autofix conditions (all must hold):
+
+- Target module source is available
+- `__all__` is statically defined **or** used symbol set is provably minimal
+- No `__getattr__` or dynamic export behavior
+
+Otherwise:
+
+- Emit lint error
+- No rewrite
+
+---
+
+### 4.3 Import Formatting
+
+Policy:
+
+- One import per line
+- Canonical ordering (stdlib → third‑party → local)
+
+Always safe to autofix.
+
+---
+
+### 4.4 Type‑Only Imports
+
+Policy:
+
+- Symbols used **only** in annotations must not be imported at runtime
+
+Preferred strategies:
+
+1. `from __future__ import annotations`
+2. `if TYPE_CHECKING:` blocks
+
+Autofix only if:
+
+- Symbol never appears in runtime context
+- Python version compatibility confirmed
+
+---
+
+### 4.5 Circular Dependencies
+
+Policy:
+
+- Circular imports are allowed **only** if proven harmless
+
+Classification:
+
+- Type‑only cycles → allowed / auto‑fixable
+- Deferred (function‑local) imports → auto‑fixable
+- Attribute‑access during module init → error
+
+Autofix strategies:
+
+- Move imports into functions
+- Move imports under `TYPE_CHECKING`
+- Split interface vs implementation modules (suggested only)
+
+---
+
+### 4.6 `sys.path` Manipulation
+
+Policy:
+
+- Runtime modification of `sys.path` is forbidden
+
+Behavior:
+
+- Detect and classify mutations
+- Mark all downstream imports as tainted
+- Emit diagnostics
+- **Never autofix**
+
+Suggested remedies only (documentation, packaging, `-m` usage).
+
+---
+
+## 5. Internal Analysis Model
+
+### 5.1 Module Graph
+
+- Nodes: modules
+- Edges: imports
+- Edge types: runtime / type‑only / optional / star
+
+Used for:
+
+- Cycle detection
+- Package boundary decisions
+
+---
+
+### 5.2 Symbol Tables
+
+Per module:
+
+- Definitions
+- Imports
+- Re‑exports
+- `__all__`
+
+---
+
+### 5.3 Usage Map
+
+Tracks symbol usage context:
+
+- Runtime
+- Annotation‑only
+- Deferred (function scope)
+
+---
+
+### 5.4 Safety Flags
+
+Each import is tagged with:
+
+- resolvable / unresolvable
+- safe to rewrite / unsafe
+- tainted / clean
+
+---
+
+## 6. Processing Pipeline
+
+### Pass 1: Parse & Index
+
+- Parse AST
+- Build module graph
+- Build symbol tables
+
+### Pass 2: Resolve
+
+- Resolve names
+- Classify imports
+- Detect cycles
+
+### Pass 3: Validate
+
+- Check against import policy
+- Produce diagnostics
+
+### Pass 4: Rewrite (Best‑Effort)
+
+- Apply **only** provably safe transformations
+- Leave all others untouched
+
+---
+
+## 7. Guarantees
+
+The tool guarantees:
+
+- No silent behavior changes
+- No speculative rewrites
+- Deterministic output
+- Clear diagnostics explaining every refusal
+
+The tool does **not** guarantee:
+
+- Full normalization of all imports
+- Elimination of all cycles
+- Compatibility with dynamic import patterns
+
+---
+
+## 8. Philosophy
+
+This tool treats Python imports as **semantic infrastructure**, not formatting trivia.
+
+Correctness > completeness.
+Refusal > corruption.

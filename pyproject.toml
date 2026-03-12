@@ -16,31 +16,32 @@ target-version = "py314"
 
 [tool.ruff.lint]
 select = [
-    "E", "W",   # pycodestyle
-    "F",        # pyflakes
-    "I",        # isort
-    "N",        # pep8-naming
-    "UP",       # pyupgrade
-    "B",        # bugbear
-    "C4",       # comprehensions
-    "SIM",      # simplify
-    "ARG",      # unused arguments
-    "PTH",      # use pathlib
-    "RET",      # return
-    "PL",       # pylint
-    "PERF",     # perflint
+    "E",
+    "W",    # pycodestyle
+    "F",    # pyflakes
+    "I",    # isort
+    "N",    # pep8-naming
+    "UP",   # pyupgrade
+    "B",    # bugbear
+    "C4",   # comprehensions
+    "SIM",  # simplify
+    "ARG",  # unused arguments
+    "PTH",  # use pathlib
+    "RET",  # return
+    "PL",   # pylint
+    "PERF", # perflint
 ]
 ignore = [
-    "E501",     # line too long (formatter handles this)
-    "PLR0913",  # too many arguments
-    "PLR2004",  # magic value comparison
-    "RET504",   # unnecessary assignment before return
-    "SIM108",   # ternary operator (sometimes less readable)
-    "B904",     # raise from in except (typer.Exit is fine)
-    "PLC0415",  # import not at top (lazy imports are the whole point of this tool)
-    "PLR0911",  # too many return statements
-    "PLR0912",  # too many branches
-    "PLR0915",  # too many statements
+    "E501",    # line too long (formatter handles this)
+    "PLR0913", # too many arguments
+    "PLR2004", # magic value comparison
+    "RET504",  # unnecessary assignment before return
+    "SIM108",  # ternary operator (sometimes less readable)
+    "B904",    # raise from in except (typer.Exit is fine)
+    "PLC0415", # import not at top (lazy imports are the whole point of this tool)
+    "PLR0911", # too many return statements
+    "PLR0912", # too many branches
+    "PLR0915", # too many statements
 ]
 fixable = ["ALL"]
 
@@ -65,7 +66,7 @@ section-order = [
 ]
 
 [tool.ruff.lint.pydocstyle]
-convention = "google"
+convention = "pep257"
 
 [tool.ruff.lint.pylint]
 max-args = 7
@@ -75,7 +76,7 @@ max-statements = 50
 
 [tool.mypy]
 python_version = "3.14"
-mypy_path = "packages/janitor-core/src:packages/janitor-cli/src"
+mypy_path = "packages/janitor-core/src:packages/import-janitor/src"
 explicit_package_bases = true
 exclude = ["build", "dist"]
 
@@ -93,20 +94,14 @@ strict_equality = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-pythonpath = [
-    "packages/janitor-core/src",
-    "packages/janitor-cli/src",
-]
+pythonpath = ["packages/janitor-core/src", "packages/import-janitor/src"]
 python_files = ["test_*.py"]
 python_functions = ["test_*"]
 python_classes = ["Test*"]
 filterwarnings = ["ignore::DeprecationWarning"]
 
 [tool.coverage.run]
-source = [
-    "packages/janitor-core/src",
-    "packages/janitor-cli/src",
-]
+source = ["packages/janitor-core/src", "packages/import-janitor/src"]
 
 [tool.coverage.report]
 show_missing = true

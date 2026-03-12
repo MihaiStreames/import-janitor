@@ -1,50 +1,98 @@
-from __future__ import annotations
-
-from dataclasses import dataclass
-from dataclasses import field
 from enum import Enum
-from enum import auto
 from pathlib import Path
 
-import msgspec
+from msgspec import Struct
 
 
 class ImportKind(Enum):
+    """
+    Enumeration of Python import statement types.
+
+    Members
+    -------
+    REGULAR
+        ``import foo`` or ``import foo as bar``.
+    FROM
+        ``from foo import bar`` or ``from foo import bar as baz``.
+    STAR
+        ``from foo import *``.
+    FUTURE
+        ``from __future__ import ...``.
+
+    Examples
+    --------
+    >>> ImportKind.REGULAR
+    <ImportKind.REGULAR: 1>
+    >>> ImportKind(1)
+    <ImportKind.REGULAR: 1>
+    """
+
     REGULAR = 1
     FROM = 2
     STAR = 3
     FUTURE = 4
 
 
-@dataclass(frozen=True, slots=True)
-class Import:
+class Import(Struct, frozen=True):
+    """
+    Representation of a single import statement.
+
+    Fields
+    ------
     kind: ImportKind
-    module: str  # always absolute after resolution
-    names: tuple[str, ...] = ()  # empty for REGULAR/STAR
-    alias: str | None = None  # import foo as f
-    is_type_checking: bool = False  # inside TYPE_CHECKING block
+        Type of import statement.
+    module: str
+        Absolute module path after resolution.
+    names: tuple[str, ...]
+        Imported names. Empty for ``REGULAR`` imports.
+    alias: str | None
+        Optional alias (e.g. ``import foo as f``).
+    is_type_checking: bool
+        True if the import occurs inside ``if TYPE_CHECKING:``.
+    lineno: int
+        Line number of the import statement (1-based).
+    level: int
+        Relative import level (0 = absolute, 1 = ``.``, 2 = ``..``).
+
+    Notes
+    -----
+    ``module`` is normalized to an absolute module path during
+    import resolution.
+
+    Examples
+    --------
+    >>> Import(module="os")
+    Import(kind=<ImportKind.REGULAR: 1>, module='os')
+    """
+
+    kind: ImportKind = ImportKind.REGULAR
+    module: str = ""
+    names: tuple[str, ...] = ()
+    alias: str | None = None
+    is_type_checking: bool = False
     lineno: int = 0
-    level: int = 0  # 0 = absolute, 1 = current package, etc. (for ImportFrom only)
+    level: int = 0
 
 
-@dataclass(slots=True)
-class ModuleImports:
+class ModuleImports(Struct):
+    """
+    Collection of import statements discovered in a module.
+
+    Fields
+    ------
     path: Path
-    module_name: str  # dotted, e.g. "janitor.graph"
-    imports: list[Import] = field(default_factory=list)
+        Absolute path to the module file.
+    module_name: str
+        Fully-qualified dotted module name.
+    imports: list[Import]
+        Import statements found in the module.
 
+    Examples
+    --------
+    >>> ModuleImports(path=Path("pkg/mod.py"), module_name="pkg.mod", imports=[])
+    ModuleImports(path=PosixPath('pkg/mod.py'), module_name='pkg.mod', imports=[])
+    """
 
-@dataclass(slots=True)
-class Cycle:
-    modules: list[str]  # ordered cycle path
-
-    def __str__(self) -> str:
-        chain = " → ".join(self.modules)
-        return f"{chain} → {self.modules[0]}"  # show it loops back
-
-
-# msgspec for any JSON output (--format json flag later)
-class CycleReport(msgspec.Struct):
-    cycles: list[list[str]]
-    file_count: int
-    error_count: int
+    path: Path = Path()
+    module_name: str = ""
+    imports: list[Import] = []

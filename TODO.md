@@ -1,142 +1,145 @@
-# import-janitor TODO
+# TODO
 
-## Project Goal
+Ordered by dependency. Do not start a section until everything above it is done and tested.
 
-Build an opinionated tool that analyzes and optimizes Python imports following ruff/isort/black rules.
+---
 
-## Core Features
+## Phase 0 - Foundation
 
-### 1. TYPE_CHECKING Import Migration ✅ (In Progress)
+These are prerequisites for everything. Nothing else is started until this is solid.
 
-- [ ] Parse imports from files
-- [ ] Track import metadata (module, names, line numbers)
-- [ ] Complete usage tracker to find where imports are used
-- [ ] Detect type-only usage contexts:
-  - [ ] Function annotations (args, return types)
-  - [ ] Variable type hints
-  - [ ] Generic type arguments (`List[MyClass]`)
-  - [ ] String annotations (forward references)
-  - [ ] Handle `from __future__ import annotations`
-- [ ] Identify runtime usage that prevents TYPE_CHECKING:
-  - [ ] `isinstance()` / `issubclass()` checks
-  - [ ] Actual code execution
-  - [ ] Default argument values
-- [ ] Transform imports to TYPE_CHECKING blocks:
-  - [ ] Add `from typing import TYPE_CHECKING` if needed
-  - [ ] Move type-only imports into `if TYPE_CHECKING:` block
-  - [ ] Preserve import order and formatting
-- [ ] Handle edge cases:
-  - [ ] Multiple TYPE_CHECKING blocks
-  - [ ] Mixed type/runtime imports from same module
-  - [ ] Circular imports that can be fixed this way
+- [ ] `models.py` - rewrite from scratch
+  - [x] `ImportKind` enum: `REGULAR | FROM | STAR | FUTURE`
+  - [x] `Import` frozen dataclass with `kind, module, names, alias, is_type_checking, lineno, level`
+  - [ ] `ModuleImports` dataclass with `path, module_name, imports`
+  - [ ] `Diagnostic` dataclass with `path, lineno, kind, message, fix`
+  - [ ] `Fix` dataclass with `kind, lineno, new_text`
+  - [ ] `CycleReport` msgspec Struct (for JSON output only)
 
-### 2. Relative vs Absolute Import Normalization
+- [ ] `resolver.py` - rewrite from scratch, keep the logic
+  - [ ] `is_stdlib(module: str) -> bool`
+  - [ ] `is_third_party(module: str, project_root: Path) -> bool`
+  - [ ] `resolve_relative(module, level, current_module) -> str`
+  - [ ] Unit tests for all three - edge cases: level=0 no-op, level=2 double-dot, module=None for `from . import x`
 
-- [ ] Build package structure analyzer:
-  - [ ] Find all `__init__.py` files
-  - [ ] Build package hierarchy tree
-  - [ ] Determine package boundaries
-- [ ] Classify each import:
-  - [ ] Internal (within same package tree) → relative
-  - [ ] External (third-party/stdlib) → absolute
-- [ ] Implement transformations:
-  - [ ] Convert internal imports to relative (`.module`, `..sibling`)
-  - [ ] Keep external imports absolute
-  - [ ] Handle top-level package imports (can't be more relative)
-- [ ] Edge cases:
-  - [ ] Namespace packages without `__init__.py`
-  - [ ] Cross-package imports in monorepos
-  - [ ] Distinguish stdlib vs third-party vs local
+- [ ] `parser.py` - new file, replaces the broken `extract_imports` in graph.py
+  - [ ] Targeted statement traversal (NOT `ast.walk`)
+  - [ ] Correct `TYPE_CHECKING` detection without double-visiting nodes
+  - [ ] Handles: top-level imports, `if TYPE_CHECKING:`, imports inside functions/classes (flagged separately)
+  - [ ] Unit tests covering: star imports, future imports, relative imports, nested TYPE_CHECKING
 
-### 3. Circular Dependency Detection
+---
 
-**Status:** Not started
+## Phase 1 - Graph
 
-- [ ] Build module import graph:
-  - [ ] Create directed graph of all imports
-  - [ ] Track import relationships between files
-- [ ] Implement cycle detection:
-  - [ ] DFS-based cycle detection algorithm
-  - [ ] Find all cycles in the graph
-  - [ ] Report full cycle paths (A → B → C → A)
-- [ ] Suggest fixes:
-  - [ ] Identify type-only imports that can move to TYPE_CHECKING
-  - [ ] Suggest lazy imports (import inside functions)
-  - [ ] Flag architectural issues for manual review
-- [ ] Integration:
-  - [ ] Run before other transforms to avoid creating cycles
-  - [ ] Exit with error if unfixable cycles exist
-  - [ ] Option to continue with warnings
+Depends on: Phase 0
 
-### 4. `__all__` Deduplication & Re-export Optimization
+- [ ] `graph.py` - rewrite
+  - [ ] `path_to_module(path, root) -> str`
+  - [ ] `discover_files(root) -> list[Path]` - respects `.gitignore` and excludes patterns
+  - [ ] `build_graph(modules) -> nx.DiGraph` - excludes TYPE_CHECKING edges, excludes stdlib/third-party
+  - [ ] `find_cycles(graph) -> list[Cycle]`
+  - [ ] Monorepo: accept multiple roots, classify cross-package imports correctly
+  - [ ] Unit tests: simple cycle, no cycle, cross-package edge, TYPE_CHECKING edge excluded
 
-- [ ] Parse `__init__.py` files:
-  - [ ] Extract `__all__` declarations
-  - [ ] Parse all `from X import Y` statements
-  - [ ] Track what each package exports
-- [ ] Detect redundant re-exports:
-  - [ ] Compare package's `__all__` with imported package's `__all__`
-  - [ ] Identify complete pass-through (100% match)
-  - [ ] Identify partial re-exports (subset)
-- [ ] Optimize complete re-exports:
-  - [ ] Replace individual imports with package import
-  - [ ] Example: `from .subpkg import a, b, c` → `from . import subpkg`
-  - [ ] Update `__all__` to export package instead
-- [ ] Conservative mode:
-  - [ ] Only optimize 100% matches by default
-  - [ ] Flag for aggressive mode (optimize partials too)
-- [ ] Verify correctness:
-  - [ ] Ensure `package.subpkg.item` still works
-  - [ ] Don't expose unintended items
-- [ ] Handle transitive re-exports:
-  - [ ] Detect chains (pkg3 → pkg2 → pkg1)
-  - [ ] Suggest direct imports when appropriate
+---
 
-### 5. Config Integration (ruff/isort/black)
+## Phase 2 - Passes (stable)
 
-- [ ] Config file discovery:
-  - [ ] Read `pyproject.toml` ([tool.ruff], [tool.isort], [tool.black])
-  - [ ] Read `setup.cfg`
-  - [ ] Read `.isort.cfg`, `ruff.toml`
-  - [ ] Merge configs with priority
-- [ ] Extract relevant settings:
-  - [ ] Line length (for import splitting)
-  - [ ] Known first-party packages (internal/external classification)
-  - [ ] Force single line imports
-  - [ ] Import sorting preferences
-  - [ ] Excluded directories
-- [ ] Apply settings:
-  - [ ] Respect line length when rewriting
-  - [ ] Use known-first-party for classification
-  - [ ] Follow sorting rules
-- [ ] Compatibility:
-  - [ ] Don't conflict with existing formatters
-  - [ ] Work alongside ruff/black/isort
+Depends on: Phase 1. Each pass is independent so they can be built in parallel.
 
-## Edge Cases to Handle
+- [ ] `passes/cycles.py`
+  - [ ] Wraps `find_cycles`, emits one `Diagnostic` per cycle (on the module closing the loop)
+  - [ ] No Fix - cycle-breaking is manual
 
-### Import Edge Cases
+- [ ] `passes/unused.py`
+  - [ ] Collect `bound_names` from imports
+  - [ ] Walk `tree.body` for `ast.Name` references
+  - [ ] Handle: `__all__` re-exports, aliases, TYPE_CHECKING imports (never flag these)
+  - [ ] Emit `Diagnostic` with `Fix(kind="remove_line")`
 
-- [ ] Star imports (`from x import *`)
-- [ ] Dynamic imports (`__import__()`, `importlib`)
-- [ ] Conditional imports (inside if/try blocks)
-- [ ] `__init__.py` vs regular modules
-- [ ] Relative imports at package boundaries
-- [ ] Imports in type comments (Python 2 style)
+- [ ] `passes/absolute.py`
+  - [ ] For each import with `level > 0`, resolve and emit replacement
+  - [ ] Emit `Diagnostic` with `Fix(kind="replace_line")`
 
-### Type Checking Edge Cases
+---
 
-- [ ] Generic types with multiple type parameters
-- [ ] Type variables and type aliases
-- [ ] Protocol classes (runtime vs type-time)
-- [ ] `typing.cast()` calls
-- [ ] Type guards
-- [ ] Overload decorators
+## Phase 3 - Rewriter
 
-### Package Structure Edge Cases
+Depends on: Phase 2
 
-- [ ] Monorepos with multiple packages
-- [ ] Namespace packages
-- [ ] Editable installs with src layout
-- [ ] Vendored dependencies
-- [ ] Generated code (protobuf, etc.)
+- [ ] `transforms/rewriter.py`
+  - [ ] Apply a list of `Fix` objects to source text
+  - [ ] Sort fixes by lineno descending (apply bottom-up to preserve line numbers)
+  - [ ] Handle: remove_line, replace_line, insert_before
+  - [ ] Never write if dry-run
+  - [ ] Write atomically (write to temp, rename) - never corrupt a file on failure
+
+---
+
+## Phase 4 - CLI
+
+Depends on: Phase 3
+
+- [ ] `cli.py` - Typer app
+  - [ ] `janitor check <path>` - exits 1 if any diagnostics
+  - [ ] `janitor diff <path>` - prints unified diff, exits 1 if any diagnostics
+  - [ ] `janitor fix <path>` - applies stable fixes, exits 1 if unfixable diagnostics remain
+  - [ ] `--experimental` flag - unlocks experimental passes
+  - [ ] `--format json` - machine-readable output
+  - [ ] `--exclude` - glob patterns to skip
+
+- [ ] `output.py`
+  - [ ] Rich formatted output for terminal
+  - [ ] JSON serialization via msgspec
+
+---
+
+## Phase 5 - Experimental passes
+
+Depends on: Phase 4 (need the `--experimental` flag infrastructure first)
+
+- [ ] `passes/type_checking.py`
+  - [ ] Second AST pass that identifies annotation-only positions
+  - [ ] Annotation positions: function args, return types, variable annotations, string annotations
+  - [ ] Runtime exclusions: `isinstance()`, `issubclass()`, default arg values, `typing.cast()`
+  - [ ] Emit `Diagnostic` with Fix that moves import behind `TYPE_CHECKING` and inserts `from __future__ import annotations`
+  - [ ] Document clearly: this is heuristic, it will be wrong sometimes
+
+---
+
+## Phase 6 - CI / Pre-commit
+
+Depends on: Phase 4
+
+- [ ] Pre-commit hook
+  - [ ] `hooks:` entry in repo, runnable via `pre-commit install`
+  - [ ] Runs `janitor check` only (no auto-fix on commit)
+  - [ ] Fast path: only check files changed in the commit (use `--files` arg)
+
+- [ ] GitHub Actions action
+  - [ ] `action.yml` with `path` and `fail-on` inputs
+  - [ ] Surfaces diagnostics as PR annotations (using `::error file=...` syntax)
+  - [ ] Separate action for `fix` + auto-commit (opt-in, not default)
+
+---
+
+## Phase 7 - Packaging
+
+Depends on: Phase 6
+
+- [ ] `pyproject.toml` for both `janitor-core` and `import-janitor`
+- [ ] `[tool.import-janitor]` config section in user's `pyproject.toml`
+  - [ ] `packages` - list of package roots (monorepo support)
+  - [ ] `exclude` - glob patterns
+  - [ ] `experimental` - bool, replaces the flag for CI use
+- [ ] Publish `janitor-core` to PyPI separately (so tools can depend on it without the CLI)
+
+---
+
+## Known limitations (not bugs, won't fix in Python)
+
+- Dynamic imports (`importlib`, `__import__`) - invisible to static analysis
+- `from x import *` rewriting - requires runtime introspection
+- Speed on large projects - Rust port is the answer, not optimization of Python
+- TYPE_CHECKING migration correctness - heuristic by design, documented as experimental

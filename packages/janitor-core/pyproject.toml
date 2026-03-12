@@ -1,0 +1,62 @@
+[build-system]
+requires = ["hatchling>=1.27.0"]
+build-backend = "hatchling.build"
+
+[project]
+name = "janitor-core"
+version = "0.1.0"
+description = "Core analysis and transformation engine for import-janitor"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [
+    { name = "MihaiStreames", email = "72852703+MihaiStreames@users.noreply.github.com" },
+]
+keywords = [
+    "imports",
+    "static-analysis",
+    "ast",
+    "refactoring",
+    "python",
+]
+classifiers = [
+    "Development Status :: 2 - Pre-Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Software Development :: Quality Assurance",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Utilities",
+    "Typing :: Typed",
+]
+dependencies = [
+    "libcst>=1.8.6",
+    "networkx>=3.6.1",
+    "msgspec>=0.20.0",
+]
+
+[project.optional-dependencies]
+unstable = []
+dev = [
+    "pytest>=9.0.2",
+    "pytest-snapshot>=0.9.0",
+    "mypy>=1.19.1",
+    "ruff>=0.15.5",
+]
+
+[project.urls]
+Homepage = "https://github.com/MihaiStreames/import-janitor"
+Repository = "https://github.com/MihaiStreames/import-janitor"
+Issues = "https://github.com/MihaiStreames/import-janitor/issues"
+Changelog = "https://github.com/MihaiStreames/import-janitor/blob/master/CHANGELOG.md"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/janitor"]
+
+[tool.hatch.build.targets.sdist]
+include = ["src/janitor/**", "README.md", "LICENSE"]

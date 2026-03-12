@@ -1,19 +1,15 @@
 # IDEs
 .vscode/
 
+# Python
+.venv/
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
 # LLMs
 .claude/
 
-# Python
-__pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
-venv/
-.venv/
-*.egg-info/
-dist/
-build/
-.pytest_cache/
-.ruff_cache/
+# Other
+.env

@@ -48,13 +48,13 @@ Not all fixes are equal. `import-janitor` uses an explicit stability model so yo
 
 | Feature | Stable | Unstable |
 |---|---|---|
-| Cycle detection | ✓ | |
-| Star import detection | ✓ | |
-| `__future__` insertion | ✓ | |
-| Absolute import rewriting | ✓ | |
-| `TYPE_CHECKING` guard insertion | | ✓ |
-| Lazy import wrapping | | ✓ |
-| Cycle-breaking suggestions | | ✓ |
+| Cycle detection | x | |
+| Star import detection | x | |
+| `__future__` insertion | x | |
+| Absolute import rewriting | x | |
+| `TYPE_CHECKING` guard insertion | | x |
+| Lazy import wrapping | | x |
+| Cycle-breaking suggestions | | x |
 
 Stable fixes ship in the base package. Unstable fixes require the `unstable` extra and may produce incorrect results in edge cases. ALWAYS review the diff before applying!
 

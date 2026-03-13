@@ -49,16 +49,16 @@ If an import is only used in type annotations, it has no business running at imp
 
 Not all fixes are equal. `import-janitor` uses an explicit stability model so you always know what you're getting.
 
-| Feature | Stable | Experimental |
-|---|---|---|
-| Cycle detection | x | |
-| Star import detection | x | |
-| Unused import detection | x | |
-| `__future__` insertion | x | |
-| Absolute import rewriting | x | |
-| `TYPE_CHECKING` guard insertion | | x |
-| Lazy import wrapping | | x |
-| Cycle-breaking suggestions | | x |
+| Feature                         | Stable | Experimental |
+| ------------------------------- | ------ | ------------ |
+| Cycle detection                 |   x    |              |
+| Star import detection           |   x    |              |
+| Unused import detection         |   x    |              |
+| `__future__` insertion          |   x    |              |
+| Absolute import rewriting       |   x    |              |
+| `TYPE_CHECKING` guard insertion |        |      x       |
+| Lazy import wrapping            |        |      x       |
+| Cycle-breaking suggestions      |        |      x       |
 
 Stable fixes are always available. Experimental fixes require `--experimental` and may produce incorrect results in edge cases. **Always review the diff before applying!**
 
@@ -97,7 +97,7 @@ janitor check ./src --format json
 
 `import-janitor` understands repo-level vs package-level boundaries.
 
-```
+```text
 repo/
   packages/
     auth/       <- package boundary

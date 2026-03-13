@@ -1,3 +1,5 @@
+"""AST-based import statement parser."""
+
 from ast import Attribute
 from ast import If
 from ast import Import as astImport
@@ -65,12 +67,17 @@ def parse_imports(source: str, path: Path) -> ModuleImports:
     source : str
         The Python source code to parse.
     path : Path
-        The file path of the source code, used for error reporting.
+        File path of the source, used in error messages.
 
     Returns
     -------
     ModuleImports
-        A collection of all import statements found in the source code.
+        All import statements found in the source.
+
+    Raises
+    ------
+    SyntaxError
+        If *source* contains invalid Python syntax.
     """
     tree = parse(source, filename=str(path))
     imports = []
@@ -97,54 +104,20 @@ def parse_imports(source: str, path: Path) -> ModuleImports:
             else:
                 kind = ImportKind.FROM
 
-            imports.append(
-                Import(
-                    kind=kind,
-                    module=node.module or "",
-                    names=tuple(alias.name for alias in node.names),
-                    alias=None,  # `from ... import ...` doesn't support aliasing the module itself
-                    is_type_checking=in_type_checking,
-                    lineno=node.lineno,
-                    level=node.level,
-                )
+            imports.extend(
+                [
+                    Import(
+                        kind=kind,
+                        module=node.module or "",
+                        names=(alias.name,),  # instead of alias=None, we can use per-name aliases
+                        # which means ImportFrom with multiple names needs multiple Import objects
+                        alias=alias.asname,
+                        is_type_checking=in_type_checking,
+                        lineno=node.lineno,
+                        level=node.level,
+                    )
+                    for alias in node.names
+                ]
             )
 
     return ModuleImports(path=path, imports=imports)
-
-
-# TODO: remove this once we have tests
-if __name__ == "__main__":
-    source = """
-import os
-import sys as system
-from . import foo
-from .. import bar
-from .baz import qux
-from __future__ import annotations
-
-def func():
-    import math
-    if True:
-        import datetime
-    if False:
-        from typing import TYPE_CHECKING
-
-    a = 1
-    if TYPE_CHECKING:
-        import typing
-
-    b = 2
-    return a + b
-"""
-    from time import perf_counter
-
-    time = None
-    start = perf_counter()
-
-    result = parse_imports(source, Path("/path/to/module.py"))
-
-    end = perf_counter()
-    time = end - start
-
-    print(f"Parsing took {time:.4f} seconds")
-    print(result)
